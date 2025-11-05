@@ -12,9 +12,9 @@ public class ServidorJuego {
 
     public void iniciar() throws IOException {
         serverSocket = new ServerSocket(5000);
-        System.out.println("Esperando cliente...");
+        System.out.println("Esperando");
         socketCliente = serverSocket.accept();
-        System.out.println("Cliente conectado!");
+        System.out.println("Cliente");
 
         entrada = new BufferedReader(new InputStreamReader(socketCliente.getInputStream()));
         salida = new PrintWriter(socketCliente.getOutputStream(), true);
@@ -35,7 +35,7 @@ public class ServidorJuego {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error al recibir: " + e.getMessage());
+            System.out.println("Error" + e.getMessage());
         }
         return null;
     }

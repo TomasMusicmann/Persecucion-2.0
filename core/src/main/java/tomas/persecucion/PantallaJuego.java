@@ -9,21 +9,23 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Intersector;
+import com.badlogic.gdx.math.Polygon;
 
 public class PantallaJuego implements Screen {
 
     private final PersecucionGame game;
     private SpriteBatch batch;
-    private Texture fondo;
-    private Texture autoNegro, autoPolicia;
     private OrthographicCamera camera;
+    private Texture fondo, autoNegro, autoPolicia;
     private BitmapFont font;
-    private Rectangle rectNegro, rectPolicia;
 
-    private float xNegro = 100, yNegro = 100;
-    private float xPolicia = 400, yPolicia = 100;
-    private float anguloNegro = 0, anguloPolicia = 0;
+    private static final float MAP_WIDTH = 1920f;
+    private static final float MAP_HEIGHT = 1080f;
+
+    private Auto jugador;
+    private Auto policia;
+    private boolean colision;
 
     public PantallaJuego(PersecucionGame game) {
         this.game = game;
@@ -35,83 +37,60 @@ public class PantallaJuego implements Screen {
         fondo = new Texture("fondo_juego.png");
         autoNegro = new Texture("auto_negro.png");
         autoPolicia = new Texture("auto_policia.png");
-        camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        camera.setToOrtho(false);
 
         font = new BitmapFont();
         font.setColor(Color.WHITE);
         font.getData().setScale(2);
 
-        rectNegro = new Rectangle(xNegro, yNegro, autoNegro.getWidth() * 0.2f, autoNegro.getHeight() * 0.4f);
-        rectPolicia = new Rectangle(xPolicia, yPolicia, autoPolicia.getWidth() * 0.2f, autoPolicia.getHeight() * 0.4f);
+        camera = new OrthographicCamera(MAP_WIDTH, MAP_HEIGHT);
+        camera.position.set(0, 0, 0);
+        camera.update();
+
+        jugador = new Auto(autoNegro, -200f, 0f);
+        policia = new Auto(autoPolicia, 200f, 0f);
     }
 
-    private boolean colision = false; // agregar arriba en la clase
-
-    private void update() {
-
+    private void update(float delta) {
         if (colision) {
             if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
-                PantallaJuego nueva = new PantallaJuego(game);
-                game.setScreen(nueva);
-                return;
+                game.setScreen(new PantallaJuego(game));
             }
             if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-                Gdx.graphics.setWindowedMode(1280, 1080);
-                PantallaMenu menu = new PantallaMenu(game);
-                game.setScreen(menu);
-                return;
+                Gdx.graphics.setWindowedMode(1240, 1080);
+                game.setScreen(new PantallaMenu(game));
             }
             return;
         }
 
-        float speed = 350 * Gdx.graphics.getDeltaTime();
+        jugador.mover(Input.Keys.W, Input.Keys.S, Input.Keys.A, Input.Keys.D, delta);
+        policia.mover(Input.Keys.UP, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.RIGHT, delta);
 
-        //Auto Negro (WASD)
-        float dxN = 0, dyN = 0;
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) dyN += speed;
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) dyN -= speed;
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) dxN -= speed;
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) dxN += speed;
+        limitarMovimiento(jugador);
+        limitarMovimiento(policia);
 
-        xNegro += dxN;
-        yNegro += dyN;
-        if (dxN != 0 || dyN != 0)
-            anguloNegro = (float) Math.toDegrees(Math.atan2(dyN, dxN)) + 90;
+        jugador.actualizarHitbox();
+        policia.actualizarHitbox();
 
-        float dxP = 0, dyP = 0;
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) dyP += speed;
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) dyP -= speed;
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) dxP -= speed;
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) dxP += speed;
-
-        xPolicia += dxP;
-        yPolicia += dyP;
-        if (dxP != 0 || dyP != 0)
-            anguloPolicia = (float) Math.toDegrees(Math.atan2(dyP, dxP)) + 90;
-
-        rectNegro.setPosition(xNegro, yNegro);
-        rectPolicia.setPosition(xPolicia, yPolicia);
-
-        if (rectNegro.overlaps(rectPolicia)) {
-            System.out.println("¡Colisión detectada!");
+        if (Intersector.overlapConvexPolygons(jugador.hitbox, policia.hitbox)) {
             colision = true;
-        }
-
-        //Volver al menu
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-        	Gdx.graphics.setWindowedMode(1240,1080);
-            PantallaMenu menu = new PantallaMenu(game);
-            game.setScreen(menu);
         }
     }
 
+    private void limitarMovimiento(Auto auto) {
+        float hw = MAP_WIDTH / 2f;
+        float hh = MAP_HEIGHT / 2f;
+        float halfW = auto.drawWidth / 2f;
+        float halfH = auto.drawHeight / 2f;
 
-
+        if (auto.x < -hw + halfW) auto.x = -hw + halfW;
+        if (auto.x > hw - halfW)  auto.x = hw - halfW;
+        if (auto.y < -hh + halfH) auto.y = -hh + halfH;
+        if (auto.y > hh - halfH)  auto.y = hh - halfH;
+    }
 
     @Override
     public void render(float delta) {
-        update();
+        update(delta);
 
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -119,39 +98,16 @@ public class PantallaJuego implements Screen {
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
-        // Fondo
-        batch.draw(fondo, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        batch.draw(fondo, -MAP_WIDTH / 2f, -MAP_HEIGHT / 2f, MAP_WIDTH, MAP_HEIGHT);
+        jugador.dibujar(batch);
+        policia.dibujar(batch);
 
-        // Auto Negro
-        batch.draw(autoNegro,
-                xNegro, yNegro,
-                autoNegro.getWidth() / 2f, autoNegro.getHeight() / 2f,
-                autoNegro.getWidth(), autoNegro.getHeight(),
-                0.2f, 0.2f,
-                anguloNegro,
-                0, 0, autoNegro.getWidth(), autoNegro.getHeight(),
-                false, false);
-
-        // Auto Policía
-        batch.draw(autoPolicia,
-                xPolicia, yPolicia,
-                autoPolicia.getWidth() / 2f, autoPolicia.getHeight() / 2f,
-                autoPolicia.getWidth(), autoPolicia.getHeight(),
-                0.2f, 0.2f,
-                anguloPolicia,
-                0, 0, autoPolicia.getWidth(), autoPolicia.getHeight(),
-                false, false);
-
-        batch.end();
-        
         if (colision) {
-            batch.begin();
-            font.draw(batch, "¡Colisión! Presiona R para reiniciar", 
-                           Gdx.graphics.getWidth() / 2f - 150, 
-                           Gdx.graphics.getHeight() / 2f + 50);
-            batch.end();
+            font.draw(batch, "¡El policia atrapó al fugitivo! Presiona R para reiniciar",
+                    -300, 0);
         }
 
+        batch.end();
     }
 
     @Override public void resize(int width, int height) {}
@@ -166,5 +122,71 @@ public class PantallaJuego implements Screen {
         autoNegro.dispose();
         autoPolicia.dispose();
         font.dispose();
+    }
+
+    private static class Auto {
+        final Texture textura;
+        final Polygon hitbox;
+        float x, y, rot;
+        final float escala;
+        final float drawWidth;
+        final float drawHeight;
+        final float velocidad = 350f;
+
+        private static final float HITBOX_PADDING = 0.75f;
+
+        Auto(Texture textura, float startX, float startY) {
+            this.textura = textura;
+            this.x = startX;
+            this.y = startY;
+
+            this.escala = 0.22f;
+            this.drawWidth  = textura.getWidth()  * escala;
+            this.drawHeight = textura.getHeight() * escala;
+
+            float hitboxWidth  = drawWidth  * HITBOX_PADDING;
+            float hitboxHeight = drawHeight * HITBOX_PADDING;
+
+            float[] vertices = new float[] {
+                    -hitboxWidth / 2f, -hitboxHeight / 2f,
+                     hitboxWidth / 2f, -hitboxHeight / 2f,
+                     hitboxWidth / 2f,  hitboxHeight / 2f,
+                    -hitboxWidth / 2f,  hitboxHeight / 2f
+            };
+
+            hitbox = new Polygon(vertices);
+            hitbox.setOrigin(0, 0);
+            actualizarHitbox();
+        }
+
+        void mover(int up, int down, int left, int right, float delta) {
+            float dx = 0f, dy = 0f;
+            if (Gdx.input.isKeyPressed(up))    dy += velocidad * delta;
+            if (Gdx.input.isKeyPressed(down))  dy -= velocidad * delta;
+            if (Gdx.input.isKeyPressed(left))  dx -= velocidad * delta;
+            if (Gdx.input.isKeyPressed(right)) dx += velocidad * delta;
+
+            x += dx;
+            y += dy;
+
+            if (dx != 0f || dy != 0f)
+                rot = (float) Math.toDegrees(Math.atan2(dy, dx)) + 90f;
+        }
+
+        void actualizarHitbox() {
+            hitbox.setPosition(x, y);
+            hitbox.setRotation(rot);
+        }
+
+        void dibujar(SpriteBatch batch) {
+            batch.draw(textura,
+                    x - drawWidth / 2f, y - drawHeight / 2f,
+                    drawWidth / 2f, drawHeight / 2f,
+                    drawWidth, drawHeight,
+                    1f, 1f,
+                    rot,
+                    0, 0, textura.getWidth(), textura.getHeight(),
+                    false, false);
+        }
     }
 }

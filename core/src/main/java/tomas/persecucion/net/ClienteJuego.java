@@ -14,7 +14,7 @@ public class ClienteJuego {
         entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         salida = new PrintWriter(socket.getOutputStream(), true);
         conectado = true;
-        System.out.println("Conectado al servidor!");
+        System.out.println("Conectado");
     }
 
     public void enviar(float x, float y) {
@@ -31,7 +31,7 @@ public class ClienteJuego {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error al recibir: " + e.getMessage());
+            System.out.println("Error" + e.getMessage());
         }
         return null;
     }
