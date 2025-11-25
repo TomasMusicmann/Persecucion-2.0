@@ -1,49 +1,32 @@
-package tomas.persecucion.net;
-
-import java.io.*;
-import java.net.*;
+import com.esotericsoftware.kryonet.*;
 
 public class ClienteJuego {
-    private Socket socket;
-    private BufferedReader entrada;
-    private PrintWriter salida;
-    private boolean conectado = false;
+    private Client client;
+    private float x, y, rot;
 
-    public void conectar(String ip) throws IOException {
-        socket = new Socket(ip, 5000);
-        entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        salida = new PrintWriter(socket.getOutputStream(), true);
-        conectado = true;
-        System.out.println("Conectado");
-    }
+    public void conectar(String ip) throws Exception {
+        client = new Client();
+        client.getKryo().register(ServidorJuego.MensajePosicion.class);
+        client.start();
+        client.connect(5000, ip, 54555, 54777);
 
-    public void enviar(float x, float y) {
-        if (conectado) salida.println(x + "," + y);
-    }
-
-    public float[] recibir() {
-        try {
-            if (entrada.ready()) {
-                String linea = entrada.readLine();
-                if (linea != null && linea.contains(",")) {
-                    String[] partes = linea.split(",");
-                    return new float[]{Float.parseFloat(partes[0]), Float.parseFloat(partes[1])};
+        client.addListener(new Listener() {
+            public void received(Connection c, Object o) {
+                if (o instanceof ServidorJuego.MensajePosicion msg) {
+                    // actualiza posición del otro jugador
+                    x = msg.x;
+                    y = msg.y;
+                    rot = msg.rot;
                 }
             }
-        } catch (Exception e) {
-            System.out.println("Error" + e.getMessage());
-        }
-        return null;
+        });
     }
 
-    public void cerrar() {
-        try {
-            conectado = false;
-            if (entrada != null) entrada.close();
-            if (salida != null) salida.close();
-            if (socket != null) socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    public void enviarPosicion(float x, float y, float rot) {
+        ServidorJuego.MensajePosicion msg = new ServidorJuego.MensajePosicion();
+        msg.x = x;
+        msg.y = y;
+        msg.rot = rot;
+        client.sendTCP(msg);
     }
 }

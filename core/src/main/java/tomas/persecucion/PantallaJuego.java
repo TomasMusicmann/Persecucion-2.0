@@ -61,6 +61,20 @@ public class PantallaJuego implements Screen {
             }
             return;
         }
+        
+     // En show():
+        cliente = new ClienteJuego();
+        cliente.conectar("127.0.0.1"); // o IP del servidor
+
+        // En update():
+        cliente.enviarPosicion(jugador.x, jugador.y, jugador.rot);
+        float xRemoto = cliente.x;
+        float yRemoto = cliente.y;
+        float rotRemoto = cliente.rot;
+
+        // Dibujás el auto remoto en esas coordenadas
+
+        //Movimiento
 
         jugador.mover(Input.Keys.W, Input.Keys.S, Input.Keys.A, Input.Keys.D, delta);
         policia.mover(Input.Keys.UP, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.RIGHT, delta);
